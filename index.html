@@ -155,7 +155,7 @@
       }).then(r => r.json());
       typing.innerText = "";
 
-      if (/agent/i.test(resp.reply)) {
+      if (/talk to agent/i.test(msg)) {
         append("👨‍💻 Agent has joined the chat.", 'bot');
       } else {
         append(resp.reply, 'bot');
