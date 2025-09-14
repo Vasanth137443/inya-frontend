@@ -1,0 +1,232 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Inya.ai Buildathon — Starter Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin:40px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      transition:0.5s;
+      background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
+    }
+    body.dark {
+      background: linear-gradient(135deg, #232526, #414345);
+      color:white;
+    }
+    h3 { color:#fff; text-shadow:1px 1px 3px rgba(0,0,0,0.4); }
+    body.dark h3 { color:#f1f1f1; }
+
+    #chat {
+      width: 600px; max-width:95%;
+      border:1px solid rgba(255,255,255,0.3);
+      border-radius:16px;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(12px);
+      padding:16px;
+      height:420px; overflow-y:auto;
+      box-shadow:0 8px 20px rgba(0,0,0,0.2);
+      display:flex; flex-direction:column;
+      color:#000;
+    }
+    body.dark #chat { background: rgba(40,40,40,0.5); color:#fff; }
+
+    .msg { display:flex; align-items:flex-end; margin:8px 0; gap:8px; max-width:80%; }
+    .msg span { padding:10px 14px; border-radius:16px; display:inline-block; word-wrap:break-word; }
+    .user { margin-left:auto; flex-direction:row-reverse; }
+    .user span { background:#d4f8d4; text-align:right; }
+    .bot span { background:#e6f0ff; text-align:left; }
+    body.dark .user span { background:#4c8056; }
+    body.dark .bot span { background:#3a4e7a; }
+
+    .avatar { width:32px; height:32px; border-radius:50%; background:#999; display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; }
+
+    .id { font-weight:bold; color:#d9534f; }
+    .timestamp { font-size:0.7em; color:gray; display:block; margin-top:2px; }
+    body.dark .timestamp { color:#aaa; }
+
+    #controls { margin-top:12px; display:flex; gap:8px; }
+    #input { flex:1; padding:10px; border:1px solid #ccc; border-radius:8px; }
+    body.dark #input { background:#333; color:white; border-color:#555; }
+
+    button { padding:10px 14px; border:none; border-radius:8px; background:#007bff; color:white; cursor:pointer; }
+    button:hover { background:#0056b3; }
+    #reset { background:#dc3545; }
+    #reset:hover { background:#a71d2a; }
+    #darkmode { background:#6c757d; }
+    #darkmode:hover { background:#444; }
+    #export { background:#28a745; }
+    #export:hover { background:#1e7e34; }
+    #mic { background:#ff9800; }
+    #mic:hover { background:#e68900; }
+
+    #quick { margin-top:10px; }
+    .quick-btn { margin:4px; padding:6px 12px; border:none; border-radius:6px; background:#17a2b8; color:white; cursor:pointer; }
+    .quick-btn:hover { background:#11707f; }
+
+    #typing { font-style:italic; color:gray; margin-top:6px; }
+    body.dark #typing { color:#bbb; }
+
+    #feedback { margin-top:12px; display:none; }
+    .fb-btn { margin:0 6px; font-size:20px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <h3>🤖 Inya.ai Buildathon — Starter Chat</h3>
+  <div id="chat"></div>
+  <div id="typing"></div>
+  <div id="controls">
+    <input id="input" placeholder="Type: track ORD1001 or refund ORD1001" />
+    <button id="send">Send</button>
+    <button id="mic">🎤</button>
+    <button id="reset">Reset</button>
+    <button id="darkmode">🌙</button>
+    <button id="export">💾 Export</button>
+  </div>
+  <div id="quick">
+    <button class="quick-btn">track ORD1001</button>
+    <button class="quick-btn">refund ORD1001</button>
+    <button class="quick-btn">return ORD1001</button>
+    <button class="quick-btn">complaint ORD1001</button>
+    <button class="quick-btn">talk to agent</button>
+  </div>
+  <div id="feedback">
+    <p>⭐ Was this helpful? <span class="fb-btn">👍</span> <span class="fb-btn">👎</span></p>
+  </div>
+
+  <script>
+    // 🔗 Backend URL (Render)
+    const BACKEND_URL = "https://inya-backend.onrender.com";
+
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('input');
+    const send = document.getElementById('send');
+    const reset = document.getElementById('reset');
+    const darkmode = document.getElementById('darkmode');
+    const exportBtn = document.getElementById('export');
+    const mic = document.getElementById('mic');
+    const typing = document.getElementById('typing');
+    const feedback = document.getElementById('feedback');
+    let sessionId = Date.now().toString();
+    let conversation = [];
+
+    function timeNow() {
+      return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
+
+    function append(text, cls) {
+      const d = document.createElement('div');
+      d.className = 'msg ' + cls;
+
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar';
+      avatar.textContent = (cls === 'user') ? 'U' : 'B';
+
+      const span = document.createElement('span');
+      text = text.replace(/(ORD\d+)/g,'<span class="id">$1</span>');
+      text = text.replace(/(RFD-[A-Z0-9]+)/g,'<span class="id">$1</span>');
+      text = text.replace(/(TCK-[A-Z0-9]+)/g,'<span class="id">$1</span>');
+      text = text.replace(/(RTN-[A-Z0-9]+)/g,'<span class="id">$1</span>');
+      span.innerHTML = text + `<span class="timestamp">${timeNow()}</span>`;
+
+      if (cls === 'user') {
+        d.appendChild(span);
+        d.appendChild(avatar);
+      } else {
+        d.appendChild(avatar);
+        d.appendChild(span);
+      }
+
+      chat.appendChild(d);
+      chat.scrollTop = chat.scrollHeight;
+      conversation.push(`${cls.toUpperCase()}: ${text} (${timeNow()})`);
+    }
+
+    async function postMessage(msg) {
+      append(msg, 'user');
+      typing.innerText = "Bot is typing...";
+      const resp = await fetch(BACKEND_URL + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, session: sessionId })
+      }).then(r => r.json());
+      typing.innerText = "";
+
+      if (/agent/i.test(resp.reply)) {
+        append("👨‍💻 Agent has joined the chat.", 'bot');
+      } else {
+        append(resp.reply, 'bot');
+        speak(resp.reply);
+      }
+
+      if (/thanks|goodbye/i.test(resp.reply)) {
+        feedback.style.display = "block";
+      }
+    }
+
+    send.onclick = () => {
+      const v = input.value.trim();
+      if (!v) return;
+      postMessage(v);
+      input.value = '';
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send.click(); });
+
+    reset.onclick = () => {
+      chat.innerHTML = '';
+      conversation = [];
+      sessionId = Date.now().toString();
+      feedback.style.display = "none";
+      append("🔄 Conversation reset. Try: 'track ORD1001', 'refund ORD1001', 'complaint ORD1001', or 'return ORD1001'.", 'bot');
+    };
+
+    darkmode.onclick = () => {
+      document.body.classList.toggle("dark");
+    };
+
+    exportBtn.onclick = () => {
+      const blob = new Blob([conversation.join("\n")], {type:'text/plain'});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "chat_export.txt";
+      a.click();
+    };
+
+    document.querySelectorAll(".quick-btn").forEach(btn => {
+      btn.onclick = () => { postMessage(btn.textContent); };
+    });
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.lang = "en-US";
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        input.value = transcript;
+        send.click();
+      };
+      mic.onclick = () => rec.start();
+    } else {
+      mic.style.display = "none";
+    }
+
+    function speak(text) {
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "en-US";
+      speechSynthesis.speak(utter);
+    }
+
+    document.querySelectorAll(".fb-btn").forEach(btn => {
+      btn.onclick = () => {
+        alert("Thanks for your feedback: " + btn.textContent);
+        feedback.style.display = "none";
+      };
+    });
+
+    append("👋 Welcome! Try quick buttons below or type your request.", 'bot');
+  </script>
+</body>
+</html>
