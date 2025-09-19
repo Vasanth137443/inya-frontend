@@ -148,7 +148,7 @@
     async function postMessage(msg) {
       append(msg, 'user');
       typing.innerText = "Bot is typing...";
-      const resp = await fetch("https://your-render-backend.onrender.com/chat", {
+      const resp = await fetch("https://inya-backend.onrender.com", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, session: sessionId })
